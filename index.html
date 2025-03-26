@@ -62,7 +62,7 @@
   <button onclick="copyToClipboard()" id="copyBtn" style="display:none;">?뱥 Copy to Clipboard</button>
   <button onclick="downloadJSON()" id="downloadBtn" style="display:none;">?뮶 Download credentials.json</button>
 
-  <h2>Extracted credentials.json:</h2>
+  <h2>Extracted credentials:</h2>
   <pre id="output">{}</pre>
 
   <script>
@@ -114,7 +114,7 @@
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = "credentials.json";
+      a.download = "tunnel.json";
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);

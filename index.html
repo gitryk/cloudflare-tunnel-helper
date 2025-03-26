@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cloudflare Tunnel Credential Generator</title>
+  <style>
+    body { font-family: sans-serif; padding: 2rem; max-width: 800px; margin: auto; }
+    input, textarea, button { width: 100%; margin-top: 1rem; padding: 0.5rem; font-size: 1rem; }
+    pre { background: #f4f4f4; padding: 1rem; white-space: pre-wrap; word-break: break-word; }
+    button.download { background-color: #007bff; color: white; border: none; cursor: pointer; margin-top: 1rem; }
+    button.download:hover { background-color: #0056b3; }
+    .note { font-size: 0.9rem; color: gray; margin-top: 0.5rem; }
+  </style>
+</head>
+<body>
+  <h1>Cloudflare Tunnel Credential Generator</h1>
+  <p>This tool runs entirely in your browser. Your API Token is never sent to any server except Cloudflare.</p>
+
+  <label>Account ID</label>
+  <input type="text" id="accountId" placeholder="Paste your Cloudflare Account ID" />
+
+  <label>API Token</label>
+  <input type="password" id="apiToken" placeholder="Paste your API Token" />
+  <div class="note">Token input is hidden for your safety. Make sure it has proper Tunnel permissions only.</div>
+
+  <label>Tunnel Name</label>
+  <input type="text" id="tunnelName" placeholder="Enter your desired tunnel name" />
+
+  <button onclick="createTunnel()">Create Tunnel & Generate credentials.json</button>
+  <button class="download" onclick="downloadJSON()" id="downloadBtn" style="display:none;">Download credentials.json</button>
+
+  <h2>Result:</h2>
+  <pre id="output">{}</pre>
+
+  <script>
+    let latestCred = null;
+
+    async function createTunnel() {
+      const accountId = document.getElementById("accountId").value.trim();
+      const apiToken = document.getElementById("apiToken").value.trim();
+      const tunnelName = document.getElementById("tunnelName").value.trim();
+      const resultBox = document.getElementById("output");
+      const downloadBtn = document.getElementById("downloadBtn");
+
+      resultBox.textContent = "Fetching tunnel...";
+      downloadBtn.style.display = "none";
+      latestCred = null;
+
+      if (!accountId || !apiToken || !tunnelName) {
+        resultBox.textContent = "❌ All fields are required.";
+        return;
+      }
+
+      try {
+        const res = await fetch(`https://api.cloudflare.com/client/v4/accounts/${accountId}/tunnels`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${apiToken}`,
+          },
+          body: JSON.stringify({ name: tunnelName, config_src: "cloudflare" })
+        });
+
+        const data = await res.json();
+
+        if (!data.success) {
+          resultBox.textContent = `❌ API Error:\n${JSON.stringify(data.errors, null, 2)}`;
+          return;
+        }
+
+        const cred = data.result?.credentials_file;
+        if (!cred) {
+          resultBox.textContent = "❌ credentials_file not found in response.";
+          return;
+        }
+
+        latestCred = cred;
+        resultBox.textContent = JSON.stringify(cred, null, 2);
+        downloadBtn.style.display = "inline-block";
+
+      } catch (err) {
+        resultBox.textContent = "❌ Error: " + err.message;
+      }
+    }
+
+    function downloadJSON() {
+      if (!latestCred) return;
+      const blob = new Blob([JSON.stringify(latestCred, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "credentials.json";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+  </script>
+</body>
+</html>

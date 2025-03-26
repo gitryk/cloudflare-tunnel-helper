@@ -59,10 +59,10 @@
   <div class="note">Only the <code>credentials_file</code> section will be extracted.</div>
 
   <button onclick="extractCredentials()">Extract credentials.json</button>
-  <button onclick="copyToClipboard()" id="copyBtn" style="display:none;">?뱥 Copy to Clipboard</button>
-  <button onclick="downloadJSON()" id="downloadBtn" style="display:none;">?뮶 Download credentials.json</button>
+  <button onclick="copyToClipboard()" id="copyBtn" style="display:none;">Copy to Clipboard</button>
+  <button onclick="downloadJSON()" id="downloadBtn" style="display:none;">Download tunnel.json</button>
 
-  <h2>Extracted credentials:</h2>
+  <h2>Extracted credentials.json:</h2>
   <pre id="output">{}</pre>
 
   <script>
@@ -74,7 +74,7 @@
       const copyBtn = document.getElementById("copyBtn");
       const downloadBtn = document.getElementById("downloadBtn");
 
-      output.textContent = "??Parsing...";
+      output.textContent = "⏳ Parsing...";
       copyBtn.style.display = "none";
       downloadBtn.style.display = "none";
       latestCred = null;
@@ -84,7 +84,7 @@
         const cred = parsed?.result?.credentials_file;
 
         if (!cred) {
-          output.textContent = "??Could not find credentials_file in the JSON.";
+          output.textContent = "❌ Could not find credentials_file in the JSON.";
           return;
         }
 
@@ -95,16 +95,16 @@
         downloadBtn.style.display = "inline-block";
 
       } catch (e) {
-        output.textContent = "??Invalid JSON: " + e.message;
+        output.textContent = "❌ Invalid JSON: " + e.message;
       }
     }
 
     function copyToClipboard() {
       if (!latestCred) return;
       navigator.clipboard.writeText(latestCred).then(() => {
-        alert("??Copied to clipboard!");
+        alert("✅ Copied to clipboard!");
       }, err => {
-        alert("??Failed to copy: " + err);
+        alert("❌ Failed to copy: " + err);
       });
     }
 
@@ -114,7 +114,7 @@
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = "tunnel.json";
+      a.download = "tunnel.json"; // ✅ filename
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);

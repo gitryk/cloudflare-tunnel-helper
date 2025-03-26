@@ -2,98 +2,122 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
+  <title>Cloudflare Credentials Extractor</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Cloudflare Tunnel Credential Generator</title>
   <style>
-    body { font-family: sans-serif; padding: 2rem; max-width: 800px; margin: auto; }
-    input, textarea, button { width: 100%; margin-top: 1rem; padding: 0.5rem; font-size: 1rem; }
-    pre { background: #f4f4f4; padding: 1rem; white-space: pre-wrap; word-break: break-word; }
-    button.download { background-color: #007bff; color: white; border: none; cursor: pointer; margin-top: 1rem; }
-    button.download:hover { background-color: #0056b3; }
-    .note { font-size: 0.9rem; color: gray; margin-top: 0.5rem; }
+    body {
+      background-color: #121212;
+      color: #f0f0f0;
+      font-family: sans-serif;
+      max-width: 800px;
+      margin: auto;
+      padding: 2rem;
+    }
+    textarea, pre, button {
+      width: 100%;
+      font-size: 1rem;
+      margin-top: 1rem;
+      padding: 0.75rem;
+      border: none;
+      border-radius: 4px;
+      box-sizing: border-box;
+    }
+    textarea {
+      background: #1e1e1e;
+      color: #f0f0f0;
+      height: 200px;
+      resize: vertical;
+    }
+    pre {
+      background: #1e1e1e;
+      color: #0f0;
+      min-height: 150px;
+      overflow-x: auto;
+    }
+    button {
+      background-color: #007bff;
+      color: white;
+      cursor: pointer;
+      margin-top: 1rem;
+    }
+    button:hover {
+      background-color: #0056b3;
+    }
+    .note {
+      font-size: 0.9rem;
+      color: #bbbbbb;
+      margin-top: 0.5rem;
+    }
   </style>
 </head>
 <body>
-  <h1>Cloudflare Tunnel Credential Generator</h1>
-  <p>This tool runs entirely in your browser. Your API Token is never sent to any server except Cloudflare.</p>
+  <h1>Cloudflare Credentials Extractor</h1>
+  <p>This tool runs 100% in your browser. No data is sent anywhere.</p>
 
-  <label>Account ID</label>
-  <input type="text" id="accountId" placeholder="Paste your Cloudflare Account ID" />
+  <label for="jsonInput">Paste your Cloudflare API JSON response below:</label>
+  <textarea id="jsonInput" placeholder='Paste full JSON response from Cloudflare API...'></textarea>
+  <div class="note">Only the <code>credentials_file</code> section will be extracted.</div>
 
-  <label>API Token</label>
-  <input type="password" id="apiToken" placeholder="Paste your API Token" />
-  <div class="note">Token input is hidden for your safety. Make sure it has proper Tunnel permissions only.</div>
+  <button onclick="extractCredentials()">Extract credentials.json</button>
+  <button onclick="copyToClipboard()" id="copyBtn" style="display:none;">?뱥 Copy to Clipboard</button>
+  <button onclick="downloadJSON()" id="downloadBtn" style="display:none;">?뮶 Download credentials.json</button>
 
-  <label>Tunnel Name</label>
-  <input type="text" id="tunnelName" placeholder="Enter your desired tunnel name" />
-
-  <button onclick="createTunnel()">Create Tunnel & Generate credentials.json</button>
-  <button class="download" onclick="downloadJSON()" id="downloadBtn" style="display:none;">Download credentials.json</button>
-
-  <h2>Result:</h2>
+  <h2>Extracted credentials.json:</h2>
   <pre id="output">{}</pre>
 
   <script>
     let latestCred = null;
 
-    async function createTunnel() {
-      const accountId = document.getElementById("accountId").value.trim();
-      const apiToken = document.getElementById("apiToken").value.trim();
-      const tunnelName = document.getElementById("tunnelName").value.trim();
-      const resultBox = document.getElementById("output");
+    function extractCredentials() {
+      const input = document.getElementById("jsonInput").value.trim();
+      const output = document.getElementById("output");
+      const copyBtn = document.getElementById("copyBtn");
       const downloadBtn = document.getElementById("downloadBtn");
 
-      resultBox.textContent = "Fetching tunnel...";
+      output.textContent = "??Parsing...";
+      copyBtn.style.display = "none";
       downloadBtn.style.display = "none";
       latestCred = null;
 
-      if (!accountId || !apiToken || !tunnelName) {
-        resultBox.textContent = "❌ All fields are required.";
-        return;
-      }
-
       try {
-        const res = await fetch(`https://api.cloudflare.com/client/v4/accounts/${accountId}/tunnels`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${apiToken}`,
-          },
-          body: JSON.stringify({ name: tunnelName, config_src: "cloudflare" })
-        });
+        const parsed = JSON.parse(input);
+        const cred = parsed?.result?.credentials_file;
 
-        const data = await res.json();
-
-        if (!data.success) {
-          resultBox.textContent = `❌ API Error:\n${JSON.stringify(data.errors, null, 2)}`;
-          return;
-        }
-
-        const cred = data.result?.credentials_file;
         if (!cred) {
-          resultBox.textContent = "❌ credentials_file not found in response.";
+          output.textContent = "??Could not find credentials_file in the JSON.";
           return;
         }
 
-        latestCred = cred;
-        resultBox.textContent = JSON.stringify(cred, null, 2);
+        const pretty = JSON.stringify(cred, null, 2);
+        output.textContent = pretty;
+        latestCred = pretty;
+        copyBtn.style.display = "inline-block";
         downloadBtn.style.display = "inline-block";
 
-      } catch (err) {
-        resultBox.textContent = "❌ Error: " + err.message;
+      } catch (e) {
+        output.textContent = "??Invalid JSON: " + e.message;
       }
+    }
+
+    function copyToClipboard() {
+      if (!latestCred) return;
+      navigator.clipboard.writeText(latestCred).then(() => {
+        alert("??Copied to clipboard!");
+      }, err => {
+        alert("??Failed to copy: " + err);
+      });
     }
 
     function downloadJSON() {
       if (!latestCred) return;
-      const blob = new Blob([JSON.stringify(latestCred, null, 2)], { type: "application/json" });
+      const blob = new Blob([latestCred], { type: "application/json" });
       const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = "credentials.json";
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "credentials.json";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
     }
   </script>
 </body>
